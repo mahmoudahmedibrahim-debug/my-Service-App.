@@ -8,9 +8,18 @@ import '../../widgets/primary_button.dart';
 
 const _kAdminBackdoorPhone = '01000000000';
 
-/// Real Firebase Phone Authentication (SMS OTP) for clients and providers.
-/// The admin phone number is a fixed backdoor for the founding team and
-/// skips SMS entirely — it never has a real subscriber behind it.
+/// Real Firebase Phone Auth needs the project's Blaze (pay-as-you-go) plan
+/// linked before it can send any SMS at all, including free-tier ones — the
+/// team held off on linking a bank card for now, so this flips the login
+/// screen back to a demo OTP (any code is accepted) until that's ready.
+/// Flip to true once Blaze is enabled — the real Firebase flow below is
+/// otherwise fully wired and unchanged.
+const kUseRealOtp = false;
+
+/// Phone-based login for clients and providers. Set up for real Firebase
+/// Phone Authentication (SMS OTP) — see [kUseRealOtp]. The admin phone
+/// number is a fixed backdoor for the founding team and always skips SMS,
+/// real or demo — it never has a real subscriber behind it.
 class PhoneLoginScreen extends StatefulWidget {
   const PhoneLoginScreen({super.key});
 
@@ -27,6 +36,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
   String? _error;
 
   bool get _isAdminBackdoor => _phoneController.text.trim() == _kAdminBackdoorPhone;
+  bool get _skipRealSms => _isAdminBackdoor || !kUseRealOtp;
 
   @override
   Widget build(BuildContext context) {
@@ -47,7 +57,10 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
               ),
               const SizedBox(height: 6),
               if (!_otpSent)
-                const Text('هيوصلك كود تحقق حقيقي برسالة SMS', style: TextStyle(fontSize: 12, color: Colors.black45)),
+                Text(
+                  kUseRealOtp ? 'هيوصلك كود تحقق حقيقي برسالة SMS' : 'نسخة تجريبية: اكتب أي كود من 4 أرقام في الخطوة الجاية',
+                  style: const TextStyle(fontSize: 12, color: Colors.black45),
+                ),
               const SizedBox(height: 24),
               TextField(
                 controller: _phoneController,
@@ -61,7 +74,9 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
                   controller: _otpController,
                   enabled: !_busy,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(hintText: 'اكتب كود التحقق اللي وصلك بالـ SMS'),
+                  decoration: InputDecoration(
+                    hintText: _skipRealSms ? 'اكتب أي كود (مثلاً 1234)' : 'اكتب كود التحقق اللي وصلك بالـ SMS',
+                  ),
                 ),
               ],
               if (_error != null) ...[
@@ -88,7 +103,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
       return;
     }
 
-    if (_isAdminBackdoor) {
+    if (_skipRealSms) {
       setState(() {
         _otpSent = true;
         _error = null;
@@ -114,7 +129,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
     final appState = pv.Provider.of<AppState>(context, listen: false);
     final phone = _phoneController.text.trim();
 
-    if (!_isAdminBackdoor) {
+    if (!_skipRealSms) {
       setState(() {
         _busy = true;
         _error = null;
